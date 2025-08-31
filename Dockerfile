@@ -1,32 +1,37 @@
 # ==== Stage 1: Build ====
 FROM eclipse-temurin:17-jdk-alpine AS build
 
+# Set working directory
 WORKDIR /app
 
 # Copy Maven wrapper and pom.xml
-COPY mvnw . 
-COPY .mvn .mvn 
+COPY mvnw .
+COPY .mvn .mvn
 COPY pom.xml .
 
+# Give execution permission to mvnw
 RUN chmod +x mvnw
 
-# Download dependencies (cache)
+# Download dependencies only (for caching)
 RUN ./mvnw dependency:go-offline -B
 
-# Copy source code and build
+# Copy the source code
 COPY src ./src
+
+# Build the project (skip tests)
 RUN ./mvnw clean package -DskipTests
 
 # ==== Stage 2: Run ====
 FROM eclipse-temurin:17-jdk-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Copy jar from build stage
+# Copy the jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose port
+# Expose the port
 EXPOSE 8080
 
-# Run the app
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Command to run the jar
+ENTRYPOINT ["java","-jar","app.jar"]
