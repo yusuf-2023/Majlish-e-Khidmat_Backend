@@ -8,14 +8,13 @@ import com.majlishekhidmat.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -53,13 +52,14 @@ public class UserController {
         return ResponseEntity.ok(resp);
     }
 
-    // -------- Get all users
+    // -------- Get all users (Admin only)
     @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    // -------- Get profile
+    // -------- Get profile (Logged-in user)
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
@@ -90,7 +90,7 @@ public class UserController {
         }
     }
 
-    // -------- Update profile
+    // -------- Update profile (Logged-in user)
     @PutMapping("/update")
     public ResponseEntity<?> update(HttpServletRequest request, @RequestBody UserDto dto) {
         try {
@@ -103,14 +103,34 @@ public class UserController {
         }
     }
 
-    // -------- Delete profile
+    // -------- Self Delete profile (Logged-in user)
     @DeleteMapping("/delete")
     public ResponseEntity<?> delete(HttpServletRequest request) {
         try {
             String token = extractToken(request);
             String email = jwtService.extractUsername(token);
-            userService.deleteUser(email);
-            return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+            User user = userService.getUserByEmail(email);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User not found"));
+            }
+            userService.deleteUserById(user.getId());
+            return ResponseEntity.ok(Map.of("message", "Your account has been deleted successfully"));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    // -------- Admin Delete User by ID
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteUserById(@PathVariable Long id) {
+        try {
+            User user = userService.getUserById(id);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found with id " + id));
+            }
+            userService.deleteUserById(id);
+            return ResponseEntity.ok(Map.of("message", "User with id " + id + " has been deleted successfully"));
         } catch (RuntimeException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
         }

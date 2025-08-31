@@ -12,5 +12,8 @@ public interface UserService {
     User getUserByEmail(String email);
     User updateUser(String email, UserDto dto);
     void deleteUser(String email);
+    
+    User getUserById(Long id);
+    void deleteUserById(Long id);
     User uploadProfilePic(String email, MultipartFile file);
 }

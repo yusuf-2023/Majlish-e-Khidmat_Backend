@@ -28,16 +28,26 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Email already exists!");
         }
 
+        LocalDate dob = null;
+        try {
+            if (dto.getDob() != null && !dto.getDob().isEmpty()) {
+                dob = LocalDate.parse(dto.getDob());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid DOB format. Please use YYYY-MM-DD");
+        }
+
         User user = User.builder()
                 .name(dto.getName())
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword().trim()))
-                .role("USER") 
+                .role("USER")
                 .phone(dto.getPhone())
                 .address(dto.getAddress())
-                .dob(dto.getDob() != null && !dto.getDob().isEmpty() ? LocalDate.parse(dto.getDob()) : null)
+                .dob(dob)
                 .gender(dto.getGender())
                 .profilePic(dto.getProfilePic())
+                .blocked(dto.isBlocked())
                 .build();
 
         return userRepository.save(user);
@@ -56,7 +66,15 @@ public class UserServiceImpl implements UserService {
         existingUser.setName(dto.getName());
         existingUser.setPhone(dto.getPhone());
         existingUser.setAddress(dto.getAddress());
-        existingUser.setDob(dto.getDob() != null && !dto.getDob().isEmpty() ? LocalDate.parse(dto.getDob()) : null);
+
+        try {
+            if (dto.getDob() != null && !dto.getDob().isEmpty()) {
+                existingUser.setDob(LocalDate.parse(dto.getDob()));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid DOB format. Please use YYYY-MM-DD");
+        }
+
         existingUser.setGender(dto.getGender());
 
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
@@ -65,6 +83,8 @@ public class UserServiceImpl implements UserService {
         if (dto.getProfilePic() != null) {
             existingUser.setProfilePic(dto.getProfilePic());
         }
+
+        existingUser.setBlocked(dto.isBlocked());
 
         return userRepository.save(existingUser);
     }
@@ -90,7 +110,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void deleteUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        userRepository.delete(user);
+    }
+
+    @Override
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+    
+    @Override
+    public User getUserById(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 }

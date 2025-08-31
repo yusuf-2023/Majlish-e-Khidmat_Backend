@@ -4,9 +4,10 @@ import com.majlishekhidmat.dto.UserDto;
 import com.majlishekhidmat.entity.User;
 import com.majlishekhidmat.repository.AdminUserRepository;
 import com.majlishekhidmat.service.AdminUserService;
-import jakarta.persistence.EntityNotFoundException;  // <--- use jakarta package here
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // ✅ Yeh import zaroori hai
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -58,6 +59,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    @Transactional // ✅ Yahi woh mukhya badlaav hai
     public void deleteUser(String email) {
         User user = getUserByEmail(email);
         userRepository.delete(user);
@@ -66,7 +68,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public void blockUser(String email, boolean block) {
         User user = getUserByEmail(email);
-        user.setBlocked(block); // Make sure User entity has Boolean blocked field
+        user.setBlocked(block);
         userRepository.save(user);
     }
 }

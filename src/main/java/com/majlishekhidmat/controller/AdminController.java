@@ -1,19 +1,32 @@
 package com.majlishekhidmat.controller;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestPart; // ✅ Yeh import zaroori hai
+import org.springframework.http.MediaType; // ✅ Yeh import zaroori hai
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.majlishekhidmat.dto.AdminDto;
 import com.majlishekhidmat.entity.Admin;
 import com.majlishekhidmat.service.AdminService;
 import com.majlishekhidmat.service.JwtService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -23,6 +36,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final JwtService jwtService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping("/all")
     public ResponseEntity<?> getAllAdmins() {
@@ -34,9 +48,7 @@ public class AdminController {
                     "message", "Admins fetched successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Failed to fetch admins: " + e.getMessage()));
+                    .body(Map.of("success", false, "error", "Failed to fetch admins: " + e.getMessage()));
         }
     }
 
@@ -49,9 +61,7 @@ public class AdminController {
 
             if (!"ROLE_ADMIN".equalsIgnoreCase(role)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of(
-                                "success", false,
-                                "error", "Access denied: Role is not ADMIN"));
+                        .body(Map.of("success", false, "error", "Access denied: Role is not ADMIN"));
             }
 
             Admin admin = adminService.getAdminByEmail(email);
@@ -62,25 +72,25 @@ public class AdminController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Invalid or expired token: " + e.getMessage()));
+                    .body(Map.of("success", false, "error", "Invalid or expired token: " + e.getMessage()));
         }
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<?> registerAdmin(@RequestBody AdminDto adminDto) {
+    // ✅ Naya `registerAdmin` method jo `multipart/form-data` ko handle karta hai
+    @PostMapping(value = "/register", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<?> registerAdmin(
+            @RequestPart("data") AdminDto adminDto, // ✅ 'adminData' ko 'data' se badal diya gaya hai
+            @RequestPart(value = "file", required = false) MultipartFile file) {
         try {
-            Admin registeredAdmin = adminService.registerAdmin(adminDto);
+            // Ab file ko bhi service method ko pass karein
+            Admin registeredAdmin = adminService.registerAdmin(adminDto, file);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", createAdminResponse(registeredAdmin),
                     "message", "Admin registered successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Registration failed: " + e.getMessage()));
+                    .body(Map.of("success", false, "error", "Registration failed: " + e.getMessage()));
         }
     }
 
@@ -93,27 +103,46 @@ public class AdminController {
 
             if (existing == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of(
-                                "success", false,
-                                "error", "Admin not found"));
+                        .body(Map.of("success", false, "error", "Admin not found"));
             }
 
             adminDto.setId(existing.getId());
-            if (adminDto.getPassword() == null || adminDto.getPassword().isEmpty()) {
-                adminDto.setPassword(existing.getPassword());
-            }
 
             Admin updated = adminService.updateAdmin(existing.getId(), adminDto);
+
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", createAdminResponse(updated),
                     "message", "Admin updated successfully"));
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Update failed: " + e.getMessage()));
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "error", "Update failed: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/upload-profile-pic")
+    public ResponseEntity<?> uploadAdminProfilePic(HttpServletRequest request, @RequestParam("file") MultipartFile file) {
+        try {
+            String token = extractToken(request);
+            String email = jwtService.extractUsername(token);
+
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", "No file selected"));
+            }
+
+            Admin updated = adminService.updateProfilePic(email, file);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", createAdminResponse(updated),
+                    "message", "Profile picture updated successfully"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "error", "Failed to upload profile picture: " + e.getMessage()));
         }
     }
 
@@ -126,59 +155,15 @@ public class AdminController {
 
             if (admin == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of(
-                                "success", false,
-                                "error", "Admin not found"));
+                        .body(Map.of("success", false, "error", "Admin not found"));
             }
 
             String message = adminService.deleteAdmin(admin.getId());
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", message));
+            return ResponseEntity.ok(Map.of("success", true, "message", message));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Deletion failed: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/upload-profile-pic")
-    public ResponseEntity<?> uploadProfilePic(HttpServletRequest request,
-            @RequestParam("file") MultipartFile file) {
-        try {
-            String token = extractToken(request);
-            String email = jwtService.extractUsername(token);
-
-            Admin updatedAdmin = adminService.updateProfilePic(email, file);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", createAdminResponse(updatedAdmin),
-                    "message", "Profile picture uploaded successfully"));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Upload failed: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/dashboard")
-    public ResponseEntity<?> getDashboardStats() {
-        try {
-            Map<String, Object> stats = new HashMap<>();
-            stats.put("totalAdmins", adminService.getAllAdmins().size());
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", stats,
-                    "message", "Dashboard stats fetched successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Failed to get dashboard stats"));
+                    .body(Map.of("success", false, "error", "Deletion failed: " + e.getMessage()));
         }
     }
 

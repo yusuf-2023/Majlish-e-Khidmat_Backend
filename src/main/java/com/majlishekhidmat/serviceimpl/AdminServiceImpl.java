@@ -1,18 +1,21 @@
 package com.majlishekhidmat.serviceimpl;
 
-import com.majlishekhidmat.dto.AdminDto;
-import com.majlishekhidmat.entity.Admin;
-import com.majlishekhidmat.repository.AdminRepository;
-import com.majlishekhidmat.service.AdminService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.majlishekhidmat.dto.AdminDto;
+import com.majlishekhidmat.entity.Admin;
+import com.majlishekhidmat.repository.AdminRepository;
+import com.majlishekhidmat.service.AdminService;
+import com.majlishekhidmat.service.ProfilePicUploadService; // ✅ Naya dependency
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -20,10 +23,10 @@ public class AdminServiceImpl implements AdminService {
 
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ProfilePicUploadService profilePicUploadService; // ✅ Naya dependency
 
     @Override
-    public Admin registerAdmin(AdminDto adminDto) {
-        // Check if email already exists
+    public Admin registerAdmin(AdminDto adminDto, MultipartFile file) {
         if (adminRepository.findByEmailIgnoreCase(adminDto.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists!");
         }
@@ -32,13 +35,23 @@ public class AdminServiceImpl implements AdminService {
                 .name(adminDto.getName())
                 .email(adminDto.getEmail())
                 .password(passwordEncoder.encode(adminDto.getPassword()))
-                .role("ROLE_ADMIN")    // ROLE_ prefix mandatory here
+                .role("ROLE_ADMIN")
                 .phone(adminDto.getPhone())
                 .address(adminDto.getAddress())
                 .dob(adminDto.getDob())
                 .gender(adminDto.getGender())
                 .profilePic(adminDto.getProfilePic())
                 .build();
+        
+        // ✅ File upload logic
+        if (file != null && !file.isEmpty()) {
+            try {
+                String filePath = profilePicUploadService.saveProfilePic(file);
+                admin.setProfilePic(filePath);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to upload profile picture", e);
+            }
+        }
 
         return adminRepository.save(admin);
     }
@@ -79,7 +92,6 @@ public class AdminServiceImpl implements AdminService {
             admin.setPassword(passwordEncoder.encode(adminDto.getPassword()));
         }
 
-        // Ensure role is "ROLE_ADMIN"
         if (admin.getRole() == null || !admin.getRole().startsWith("ROLE_")) {
             admin.setRole("ROLE_ADMIN");
         }
@@ -96,22 +108,9 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public Admin updateProfilePic(String email, MultipartFile file) {
         Admin admin = getAdminByEmail(email);
-
-        String uploadDir = "uploads/admin/";
-        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        File uploadPath = new File(uploadDir);
-
-        if (!uploadPath.exists()) {
-            boolean created = uploadPath.mkdirs();
-            if (!created) {
-                throw new RuntimeException("Failed to create directory for uploads");
-            }
-        }
-
         try {
-            File destinationFile = new File(uploadPath, fileName);
-            file.transferTo(destinationFile);
-            admin.setProfilePic(uploadDir + fileName);
+            String filePath = profilePicUploadService.saveProfilePic(file);
+            admin.setProfilePic(filePath);
             return adminRepository.save(admin);
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload profile picture", e);

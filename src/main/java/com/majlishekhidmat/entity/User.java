@@ -37,6 +37,8 @@ public class User {
     private String profilePic;
 
     private boolean blocked;
+    
+
 
    
 }

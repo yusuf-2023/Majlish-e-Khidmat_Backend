@@ -1,16 +1,26 @@
 package com.majlishekhidmat.controllerV2;
 
-import com.majlishekhidmat.dtoV2.InventoryDto;
-import com.majlishekhidmat.serviceV2.InventoryService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.majlishekhidmat.dtoV2.InventoryDto;
+import com.majlishekhidmat.serviceV2.InventoryService;
+
+import lombok.RequiredArgsConstructor;
+
 @RestController
-@RequestMapping("/api/v2/inventory")
+@RequestMapping("/api/inventory")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class InventoryController {
@@ -33,7 +43,8 @@ public class InventoryController {
 
     // Only ADMIN can get all inventory items
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
+
     public ResponseEntity<List<InventoryDto>> getAllInventory() {
         return ResponseEntity.ok(inventoryService.getAllInventory());
     }
