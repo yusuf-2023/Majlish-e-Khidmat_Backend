@@ -1,6 +1,5 @@
 package com.majlishekhidmat.serviceimpl;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +12,7 @@ import com.majlishekhidmat.dto.AdminDto;
 import com.majlishekhidmat.entity.Admin;
 import com.majlishekhidmat.repository.AdminRepository;
 import com.majlishekhidmat.service.AdminService;
-import com.majlishekhidmat.service.ProfilePicUploadService; // ✅ Naya dependency
+import com.majlishekhidmat.service.ProfilePicUploadService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,7 +22,7 @@ public class AdminServiceImpl implements AdminService {
 
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ProfilePicUploadService profilePicUploadService; // ✅ Naya dependency
+    private final ProfilePicUploadService profilePicUploadService;
 
     @Override
     public Admin registerAdmin(AdminDto adminDto, MultipartFile file) {
@@ -40,10 +39,9 @@ public class AdminServiceImpl implements AdminService {
                 .address(adminDto.getAddress())
                 .dob(adminDto.getDob())
                 .gender(adminDto.getGender())
-                .profilePic(adminDto.getProfilePic())
-                .build();
-        
-        // ✅ File upload logic
+                .build(); // profilePic builder me nahi hai
+
+        // File upload logic
         if (file != null && !file.isEmpty()) {
             try {
                 String filePath = profilePicUploadService.saveProfilePic(file);
