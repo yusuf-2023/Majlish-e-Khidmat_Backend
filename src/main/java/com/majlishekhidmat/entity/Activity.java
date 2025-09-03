@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -21,4 +23,14 @@ public class Activity {
     private String activityName;
     private String description;
     private LocalDateTime activityDate;
+
+    private String imagePath;
+
+    private String createdBy;
+
+    @OneToMany(mappedBy = "activity", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ActivityLike> likes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "activity", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ActivityComment> comments = new ArrayList<>();
 }

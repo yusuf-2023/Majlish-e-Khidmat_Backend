@@ -58,6 +58,16 @@ public class AuthSecurityConfig {
                 .requestMatchers("/api/inventory/**").hasRole("ADMIN")
                 .requestMatchers("/api/v2/feedbacks/**").hasAnyRole("ADMIN", "USER")
                 .requestMatchers("/api/v2/events/**").hasAnyRole("ADMIN", "USER")
+                
+                // Activity endpoints
+                .requestMatchers("/api/activities/create").hasRole("ADMIN")
+                .requestMatchers("/api/activities/update/**").hasRole("ADMIN")
+                .requestMatchers("/api/activities/delete/**").hasRole("ADMIN")
+                .requestMatchers("/api/activities/all").permitAll()
+                .requestMatchers("/api/activities/{id}").permitAll()
+                .requestMatchers("/api/activities/like/**").hasAnyRole("USER","ADMIN")
+                .requestMatchers("/api/activities/unlike/**").hasAnyRole("USER","ADMIN")
+                .requestMatchers("/api/activities/comment/**").hasAnyRole("USER","ADMIN")
 
                 // New route for active banks accessible to USER & ADMIN
                 .requestMatchers("/api/banks/active").hasAnyRole("USER","ADMIN")
